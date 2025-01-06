@@ -1,146 +1,349 @@
-module dacade_deepbook::disaster_mgmt {
-    use std::string::{String}; 
-    use sui::coin::{Coin, split, put, take};
-    use sui::balance::{Balance, zero};
-    use sui::sui::SUI;
-    use sui::event;
+module dacade_deepbook::farm {
+use std::string::{String};
+use sui::coin::{Coin,split, put,take};
+use sui::balance::{Balance,zero};
+use sui::sui::SUI;
+use sui::event;
 
-    // Define custom error codes
-    const ONLYOWNER: u64 = 0; // Error when the caller is not the owner of the center
-    const INSUFFICIENTBALANCE: u64 = 1; // Error when the center does not have enough funds
+//define errors codes
+const ONLYOWNER:u64=0;
+const ITEMEDOESNOTEXISTS:u64=1;
+const MUSTBEREGISTERED:u64=2;
+const INSUFFICIENTBALANCE:u64=3;
+const ITEMALREADYSOLD:u64=4;
+const ITEMALREADYRENTED:u64=5;
+// const ALREADYREFUNDED:u64=6;
+//define user data types
 
-    // Relief Center Struct: Stores information about a disaster relief center
-    public struct ReliefCenter has store, key {
-        id: UID,  // Unique identifier for the center
-        name: String,  // Name of the relief center
-        balance: Balance<SUI>,  // The balance of funds in the relief center
-    }
+public struct Farm has store,key{
+    id:UID,
+    name:String,
+    farmid:ID,
+    balance:Balance<SUI>,
+    items:vector<ItemForRent>,
+    rented:vector<Renteditem>,
+    refunds:vector<RefundRequest>,
+    registeredusers:vector<User>,
+    boughtitems:vector<BoughtItems>
+}
 
-    // Admin Capability Struct: Grants administrative capabilities over a Relief Center
-    public struct AdminCap has key {
-        id: UID,  // Unique identifier for the admin capability
-        center_id: ID,  // The ID of the relief center associated with the admin
-    }
+public struct Renteditem has store{
+    id:u64,
+    itemid:u64,
+    userid:u64,
+    refunded:bool
+}
 
-    // Events for transparency: Used for logging actions on the blockchain
-    public struct DonationReceived has copy, drop {
-        donor: address,  // Address of the donor
-        amount: u64,  // Amount donated
-        center_id: ID,  // ID of the relief center that received the donation
-    }
+public struct BoughtItems has store{
+    id:u64,
+    itemid:u64,
+    userid:u64
+}
 
-    public struct FundsTransferred has copy, drop {
-        from_center_id: ID,  // ID of the center sending funds
-        to_center_id: ID,  // ID of the center receiving funds
-        amount: u64,  // Amount of funds transferred
-    }
+public struct RefundRequest has store{
+    id:u64,
+    userid:u64,
+    itemid:u64,
+    resolved:bool,
+    buyersaddress:address
+}
 
-    public struct FundsWithdrawn has copy, drop {
-        center_id: ID,  // ID of the center withdrawing funds
-        amount: u64,  // Amount of funds withdrawn
-        recipient: address,  // Address of the recipient of the funds
-    }
+public struct ItemForRent has store,drop{
+    id:u64,
+    nameofitem:String,
+    description:String,
+    image:String,
+    price:u64,
+    sold:bool,
+    rented:bool,
+    complain:bool
+}
 
-    // Create a new Relief Center
-    public entry fun create_relief_center(
-        name: String,  // Name of the new relief center
+public struct User has store{
+    id:u64,
+    nameofuser:String
+}
+
+//define admin capabailitiess
+public struct AdminCap has key{
+    id:UID, //Unique identifier for the admin
+    farmid:ID //The ID of the relief center associated with the admin
+}
+//define events
+
+
+
+public struct ItemAdded has copy,drop{
+    id:u64,
+    name:String
+}
+public struct PriceUpdated has copy,drop{
+    name:String,
+    newprice:u64
+}
+public struct UserRegistered  has copy,drop{
+    name:String,
+    id:u64
+}
+public struct Paid  has copy,drop{
+    name:String,
+    id:u64
+}
+public struct RentedItem has copy,drop{
+    name:String,
+    by:u64
+}
+
+
+public entry fun create_farm(
+        name: String,  // Name of the new farmr
         ctx: &mut TxContext  // Transaction context
     ) {
-        let id = object::new(ctx);  // Create a new object ID for the relief center
-        let center_id = object::uid_to_inner(&id);  // Derive the center ID from the object ID
+         let id=object::new(ctx);
+         let farmid=object::uid_to_inner(&id);
 
-        // Initialize a new ReliefCenter object
-        let center = ReliefCenter {
-            id,  // Set the generated ID
-            name,  // Set the name passed in
-            balance: zero<SUI>(),  // Initialize the center with zero balance
+        // Initialize a new farm object
+        let newfarm = Farm {
+                id,
+                name,
+                farmid:farmid,
+                balance:zero<SUI>(),
+                items:vector::empty(),
+                rented:vector::empty(),
+                refunds:vector::empty(),
+                registeredusers:vector::empty(),
+                boughtitems:vector::empty()
         };
 
-        // Create the AdminCap associated with the relief center
+        // Create the AdminCap associated with the farm
         let admin_cap = AdminCap {
             id: object::new(ctx),  // Generate a new UID for AdminCap
-            center_id,  // Associate the center ID
+            farmid,  // Associate the center ID
         };
 
         // Transfer the admin capability to the sender
         transfer::transfer(admin_cap, tx_context::sender(ctx));
         
         // Share the ReliefCenter object, making it available on-chain
-        transfer::share_object(center);
+        transfer::share_object(newfarm);
     }
 
-    // Donate funds to a Relief Center
-    public entry fun donate_funds(
-        center: &mut ReliefCenter,  // Reference to the relief center receiving funds
-        donation: &mut Coin<SUI>,  // The donation coin to be transferred
-        ctx: &mut TxContext  // Transaction context
+
+public entry fun add_item(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
+
+    //verify that its only the admin performing the action
+    assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+    let id:u64=farm.items.length();
+    //create a new item
+    let newitem=ItemForRent{
+        id,
+        nameofitem,
+        description,
+        image,
+        price,
+        sold:false,
+        rented:false,
+        complain:false
+    };
+
+    farm.items.push_back(newitem);
+
+     event::emit(ItemAdded{
+        name:nameofitem,
+        id
+    });
+
+}
+
+public entry fun update_item_price(farm:&mut Farm,itemid:u64,newprice:u64,owner:&AdminCap){
+
+    //check that its the owner performing the action
+     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+
+     //check that item exists
+     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
+
+     farm.items[itemid].price=newprice;
+
+
+     event::emit(PriceUpdated{
+        name:farm.items[itemid].nameofitem,
+        newprice
+    });
+}
+
+//user regiter or login to estore
+
+public entry fun register_user(nameofuser:String,farm:&mut Farm){
+
+    //verify that username is unique
+    let mut startindex:u64=0;
+    let totaluserslength=farm.registeredusers.length();
+
+    while(startindex < totaluserslength){
+        let user=&farm.registeredusers[startindex];
+
+        if(user.nameofuser==nameofuser){
+            abort 0
+        };
+
+        startindex=startindex+1;
+    };
+
+    //register new users
+    let newuser=User{
+        id:totaluserslength,
+        nameofuser,
+    };
+    farm.registeredusers.push_back(newuser);
+
+    
+     event::emit(UserRegistered{
+        name:nameofuser,
+        id:totaluserslength
+    });
+}
+
+
+public entry fun buy_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
+    //verify that item actually exists 
+    assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
+
+    //verify that user is already registered
+    assert!(userid<=farm.registeredusers.length(),MUSTBEREGISTERED);
+
+    //verify the amount is greater than the price
+    assert!(payment.value() >= farm.items[itemid].price,INSUFFICIENTBALANCE);
+
+    //verify that item is not sold
+
+    assert!(farm.items[itemid].sold==false,ITEMALREADYSOLD);
+
+    //verify that item is not rented
+    assert!(farm.items[itemid].rented==false,ITEMALREADYRENTED);
+
+    //purchase the item
+    let payitem=payment.split(farm.items[itemid].price,ctx);
+
+    put(&mut farm.balance,payitem);
+    let id:u64=farm.boughtitems.length();
+
+    let boughtitem=BoughtItems{
+        id,
+        itemid,
+        userid
+    };
+    //update items status to sold
+    farm.items[itemid].sold=true;
+    farm.boughtitems.push_back(boughtitem);
+    event::emit(Paid{
+        name:farm.items[itemid].nameofitem,
+        id
+    });
+}
+
+//rent an item
+
+public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
+    //verify that item actually exists 
+    assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
+
+    //verify that user is already registered
+    assert!(userid<=farm.registeredusers.length(),MUSTBEREGISTERED);
+
+    //verify the amount is greater than the price
+    assert!(payment.value() >= (farm.items[itemid].price*2),INSUFFICIENTBALANCE);
+
+    //verify that item is not sold
+
+    assert!(farm.items[itemid].sold==false,ITEMALREADYSOLD);
+
+    //verify that item is not rented
+    assert!(farm.items[itemid].rented==false,ITEMALREADYRENTED);
+
+    //purchase the item
+    let payitem=payment.split(farm.items[itemid].price,ctx);
+
+    put(&mut farm.balance,payitem);
+    let id:u64=farm.boughtitems.length();
+
+    let renteditem=Renteditem{
+        id,
+        itemid,
+        userid,
+        refunded:false
+    };
+    farm.rented.push_back(renteditem);
+    //update items status
+    farm.items[itemid].rented=true;
+    event::emit(RentedItem{
+        name:farm.items[itemid].nameofitem,
+        by:userid
+    });
+}
+
+//return rented item
+public entry fun return_rented_item(farm:&mut Farm,userid:u64,itemid:u64,buyersaddress:address){
+    //verify that items is rented
+
+    let mut index:u64=0;
+    let totalrenteditems=farm.rented.length();
+
+    while(index < totalrenteditems){
+        let item=&farm.rented[index];
+        if(item.itemid==itemid && item.userid==userid){
+            //request refund of deposits
+            let id=farm.refunds.length();
+            let newrefundrequest=RefundRequest{
+                 id,
+                 userid,
+                 itemid,
+                 resolved:false,
+                 buyersaddress
+            };
+            farm.refunds.push_back(newrefundrequest);
+            //update details of refunded item
+            farm.items[itemid].rented=false;
+        };
+        index=index+1;
+    }
+}
+
+//admin approves refun request of the deposit
+
+// public entry fun deposit_refund(farm:&mut Farm,refundid:u64,amount:u64,owner:&AdminCap,ctx:&mut TxContext){
+
+//     //verify ist the admin performing the action
+//     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+//     //verify that the refund is not resolved
+//     assert!(farm.refunds[refundid].resolved==false,ALREADYREFUNDED);
+//     //verify the farm has sufficient balance to perform the refund
+//     let itemid=&farm.refunds[refundid].itemid;
+
+//      let refundamount = take(&mut farm.balance, amount, ctx);
+//      transfer::public_transfer(refundamount, farm.refunds[refundid].buyersaddress);  
+       
+
+//     farm.refunds[refundid].resolved=true;
+// }
+
+//owner witdraa all amounts
+ public entry fun withdraw_funds(
+        farm: &mut Farm,   
+        owner: &AdminCap,
+        amount:u64,
+        recipient:address,
+         ctx: &mut TxContext,
     ) {
-        let donation_amount = donation.value();  // Get the donation amount
-        let split_donation = donation.split(donation_amount, ctx);  // Split the coin (if needed)
 
-        // Add the split donation to the center's balance
-        put(&mut center.balance, split_donation); 
-
-        // Emit a donation received event for transparency
-        event::emit(DonationReceived {
-            donor: tx_context::sender(ctx),  // Address of the donor
-            amount: donation_amount,  // Amount donated
-            center_id: object::uid_to_inner(&center.id),  // ID of the center
-        });
+        //verify amount
+          assert!(amount > 0 && amount <= farm.balance.value(), INSUFFICIENTBALANCE);
+          //verify ist the admin performing the action
+          assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+        let takeamount = take(&mut farm.balance, amount, ctx);  
+        transfer::public_transfer(takeamount, recipient);
+       
     }
 
-    // Transfer funds between Relief Centers
-    public entry fun transfer_funds_between_centers(
-        from_center: &mut ReliefCenter,  // The center sending funds
-        to_center: &mut ReliefCenter,  // The center receiving funds
-        amount: u64,  // The amount to transfer
-        owner: &AdminCap,  // The admin capability for authorization
-        ctx: &mut TxContext  // Transaction context
-    ) {
-        // Ensure that the sender is the owner of the from_center
-        assert!(&owner.center_id == object::uid_as_inner(&from_center.id), ONLYOWNER);
-        // Ensure that the center has enough balance for the transfer
-        assert!(amount > 0 && amount <= from_center.balance.value(), INSUFFICIENTBALANCE);
 
-        // Take the funds from the sender's balance and transfer to the recipient center
-        let transfer_amount = take(&mut from_center.balance, amount, ctx);
-        put(&mut to_center.balance, transfer_amount);
-
-        // Emit a funds transferred event
-        event::emit(FundsTransferred {
-            from_center_id: object::uid_to_inner(&from_center.id),  // ID of the sending center
-            to_center_id: object::uid_to_inner(&to_center.id),  // ID of the receiving center
-            amount,  // Amount transferred
-        });
-    }
-
-    // Withdraw funds from a Relief Center
-    public entry fun withdraw_funds(
-        center: &mut ReliefCenter,  // The relief center from which funds are withdrawn
-        amount: u64,  // The amount to withdraw
-        recipient: address,  // The recipient address
-        owner: &AdminCap,  // The admin capability for authorization
-        ctx: &mut TxContext  // Transaction context
-    ) {
-        // Ensure that the sender is the owner of the center
-        assert!(&owner.center_id == object::uid_as_inner(&center.id), ONLYOWNER);
-        // Ensure the center has enough funds for the withdrawal
-        assert!(amount > 0 && amount <= center.balance.value(), INSUFFICIENTBALANCE);
-
-        // Take the withdrawal amount from the center's balance and transfer it to the recipient
-        let withdraw_amount = take(&mut center.balance, amount, ctx);
-        transfer::public_transfer(withdraw_amount, recipient);
-
-        // Emit a funds withdrawn event for transparency
-        event::emit(FundsWithdrawn {
-            center_id: object::uid_to_inner(&center.id),  // ID of the center making the withdrawal
-            amount,  // Amount withdrawn
-            recipient,  // Address of the recipient
-        });
-    }
-
-    // Get the balance of a Relief Center
-    public fun get_center_balance(center: &ReliefCenter): u64 {
-        center.balance.value()  // Return the balance of the relief center
-    }
 }
