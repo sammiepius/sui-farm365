@@ -130,7 +130,7 @@ public entry fun create_farm( name: String, ctx: &mut TxContext ) {
         transfer::share_object(newfarm);
 }
 
-
+//add farm items to a farm
 public entry fun add_item_to_farm(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
 
     //verify that its only the admin can add items
@@ -202,7 +202,7 @@ public entry fun register_user(nameofuser:String,farm:&mut Farm){
     });
 }
 
-
+//purchase an item from a farm
 public entry fun purchase_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify that item actually exists 
     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
@@ -348,7 +348,7 @@ public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, S
     )
 }
 
-// Get the balance of a farm...
+// Get the balance of a farm
 public fun get_farm_balance(farm: &Farm): u64 {
         farm.balance.value()  
     }
