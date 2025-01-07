@@ -12,7 +12,6 @@ const MUSTBEREGISTERED:u64=2;
 const INSUFFICIENTBALANCE:u64=3;
 const ITEMALREADYSOLD:u64=4;
 const ITEMALREADYRENTED:u64=5;
-// const ALREADYREFUNDED:u64=6;
 //define user data types
 
 public struct Farm has store,key{
@@ -34,6 +33,7 @@ public struct Renteditem has store{
     refunded:bool
 }
 
+// struct for Items brought
 public struct BoughtItems has store{
     id:u64,
     itemid:u64,
@@ -48,6 +48,7 @@ public struct RefundRequest has store{
     buyersaddress:address
 }
 
+//struct for items for rent
 public struct ItemForRent has store,drop{
     id:u64,
     nameofitem:String,
@@ -56,7 +57,6 @@ public struct ItemForRent has store,drop{
     price:u64,
     sold:bool,
     rented:bool,
-    complain:bool
 }
 
 public struct User has store{
@@ -69,69 +69,71 @@ public struct AdminCap has key{
     id:UID, //Unique identifier for the admin
     farmid:ID //The ID of the relief center associated with the admin
 }
-//define events
 
 
-
+// Event struct when a farm item is added
 public struct ItemAdded has copy,drop{
     id:u64,
     name:String
 }
+
+// struct for price update 
 public struct PriceUpdated has copy,drop{
     name:String,
     newprice:u64
 }
+
+// struct for users registration
 public struct UserRegistered  has copy,drop{
     name:String,
     id:u64
 }
+
+//struct for item piad
 public struct Paid  has copy,drop{
     name:String,
     id:u64
 }
+//struct for rented item
 public struct RentedItem has copy,drop{
     name:String,
     by:u64
 }
 
-
-public entry fun create_farm(
-        name: String,  // Name of the new farmr
-        ctx: &mut TxContext  // Transaction context
-    ) {
-         let id=object::new(ctx);
-         let farmid=object::uid_to_inner(&id);
+// create farm
+public entry fun create_farm( name: String, ctx: &mut TxContext ) {
+    let id=object::new(ctx);
+    let farmid=object::uid_to_inner(&id);
 
         // Initialize a new farm object
-        let newfarm = Farm {
-                id,
-                name,
-                farmid:farmid,
-                balance:zero<SUI>(),
-                items:vector::empty(),
-                rented:vector::empty(),
-                refunds:vector::empty(),
-                registeredusers:vector::empty(),
-                boughtitems:vector::empty()
+    let newfarm = Farm {
+        id,
+        name,
+        farmid:farmid,
+        balance:zero<SUI>(),
+        items:vector::empty(),
+        rented:vector::empty(),
+        refunds:vector::empty(),
+        registeredusers:vector::empty(),
+        boughtitems:vector::empty()
         };
 
-        // Create the AdminCap associated with the farm
-        let admin_cap = AdminCap {
-            id: object::new(ctx),  // Generate a new UID for AdminCap
-            farmid,  // Associate the center ID
+  // Create the AdminCap associated with the farm
+    let admin_cap = AdminCap {
+        id: object::new(ctx),  // Generate a new UID for AdminCap
+        farmid,  // Associate the farm ID
         };
 
         // Transfer the admin capability to the sender
         transfer::transfer(admin_cap, tx_context::sender(ctx));
         
-        // Share the ReliefCenter object, making it available on-chain
         transfer::share_object(newfarm);
-    }
+}
 
 
-public entry fun add_item(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
+public entry fun add_item_to_farm(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
 
-    //verify that its only the admin performing the action
+    //verify that its only the admin can add items
     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
     let id:u64=farm.items.length();
     //create a new item
@@ -143,9 +145,7 @@ public entry fun add_item(farm:&mut Farm,nameofitem:String,description:String,im
         price,
         sold:false,
         rented:false,
-        complain:false
     };
-
     farm.items.push_back(newitem);
 
      event::emit(ItemAdded{
@@ -155,6 +155,7 @@ public entry fun add_item(farm:&mut Farm,nameofitem:String,description:String,im
 
 }
 
+// update the price of an item in a farm
 public entry fun update_item_price(farm:&mut Farm,itemid:u64,newprice:u64,owner:&AdminCap){
 
     //check that its the owner performing the action
@@ -172,8 +173,7 @@ public entry fun update_item_price(farm:&mut Farm,itemid:u64,newprice:u64,owner:
     });
 }
 
-//user regiter or login to estore
-
+//register a user to a farm
 public entry fun register_user(nameofuser:String,farm:&mut Farm){
 
     //verify that username is unique
@@ -196,8 +196,6 @@ public entry fun register_user(nameofuser:String,farm:&mut Farm){
         nameofuser,
     };
     farm.registeredusers.push_back(newuser);
-
-    
      event::emit(UserRegistered{
         name:nameofuser,
         id:totaluserslength
@@ -205,7 +203,7 @@ public entry fun register_user(nameofuser:String,farm:&mut Farm){
 }
 
 
-public entry fun buy_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
+public entry fun purchase_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify that item actually exists 
     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
 
@@ -216,7 +214,6 @@ public entry fun buy_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin
     assert!(payment.value() >= farm.items[itemid].price,INSUFFICIENTBALANCE);
 
     //verify that item is not sold
-
     assert!(farm.items[itemid].sold==false,ITEMALREADYSOLD);
 
     //verify that item is not rented
@@ -242,8 +239,7 @@ public entry fun buy_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin
     });
 }
 
-//rent an item
-
+//rent an item from a farm
 public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify that item actually exists 
     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
@@ -255,7 +251,6 @@ public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coi
     assert!(payment.value() >= (farm.items[itemid].price*2),INSUFFICIENTBALANCE);
 
     //verify that item is not sold
-
     assert!(farm.items[itemid].sold==false,ITEMALREADYSOLD);
 
     //verify that item is not rented
@@ -282,7 +277,8 @@ public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coi
     });
 }
 
-//return rented item
+
+//return rented farm item
 public entry fun return_rented_item(farm:&mut Farm,userid:u64,itemid:u64,buyersaddress:address){
     //verify that items is rented
 
@@ -309,25 +305,55 @@ public entry fun return_rented_item(farm:&mut Farm,userid:u64,itemid:u64,buyersa
     }
 }
 
-//admin approves refun request of the deposit
 
-// public entry fun deposit_refund(farm:&mut Farm,refundid:u64,amount:u64,owner:&AdminCap,ctx:&mut TxContext){
+// get farm details
+public fun view_farm_details(farm: &Farm) : 
+ (  
+    &UID, 
+    String, 
+    ID, 
+    &Balance<SUI>, 
+    &vector<ItemForRent>,
+    &vector<Renteditem>,
+    &vector<RefundRequest>,
+    &vector<User>,
+    &vector<BoughtItems>,  
 
-//     //verify ist the admin performing the action
-//     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
-//     //verify that the refund is not resolved
-//     assert!(farm.refunds[refundid].resolved==false,ALREADYREFUNDED);
-//     //verify the farm has sufficient balance to perform the refund
-//     let itemid=&farm.refunds[refundid].itemid;
+ ) {
+    (
+        &farm.id, 
+        farm.name,
+        farm.farmid,
+        &farm.balance, 
+        &farm.items, 
+        &farm.rented,
+        &farm.refunds, 
+        &farm.registeredusers,
+        &farm.boughtitems, 
+    )
+}
 
-//      let refundamount = take(&mut farm.balance, amount, ctx);
-//      transfer::public_transfer(refundamount, farm.refunds[refundid].buyersaddress);  
-       
 
-//     farm.refunds[refundid].resolved=true;
-// }
+ // get farm items details using the item id
+public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, String, u64, bool, bool) {
+    let item = &farm.items[itemid];
+     (
+        item.id,
+        item.nameofitem,
+        item.description,
+        item.image,
+        item.price,
+        item.sold,
+        item.rented,
+    )
+}
 
-//owner witdraa all amounts
+// Get the balance of a farm...
+public fun get_farm_balance(farm: &Farm): u64 {
+        farm.balance.value()  
+    }
+
+//owner witdraw amounts
  public entry fun withdraw_funds(
         farm: &mut Farm,   
         owner: &AdminCap,
@@ -338,7 +364,7 @@ public entry fun return_rented_item(farm:&mut Farm,userid:u64,itemid:u64,buyersa
 
         //verify amount
           assert!(amount > 0 && amount <= farm.balance.value(), INSUFFICIENTBALANCE);
-          //verify ist the admin performing the action
+          //verify the admin performing the action
           assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
         let takeamount = take(&mut farm.balance, amount, ctx);  
         transfer::public_transfer(takeamount, recipient);
