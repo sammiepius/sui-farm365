@@ -131,7 +131,7 @@ public entry fun create_farm( name: String, ctx: &mut TxContext ) {
 }
 
 //add farm items to a farm
-public entry fun add_item_to_farm(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
+public entry fun add_equipment(farm:&mut Farm,nameofitem:String,description:String,image:String,price:u64,owner:&AdminCap){
 
     //verify that its only the admin can add items
     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
@@ -203,7 +203,7 @@ public entry fun register_user(nameofuser:String,farm:&mut Farm){
 }
 
 //purchase an item from a farm
-public entry fun purchase_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
+public entry fun purchase_equipment(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify that item actually exists 
     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
 
@@ -240,7 +240,7 @@ public entry fun purchase_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut
 }
 
 //rent an item from a farm
-public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
+public entry fun rent_equipment(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coin<SUI>,ctx:&mut TxContext){
     //verify that item actually exists 
     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
 
@@ -279,7 +279,7 @@ public entry fun rent_item(farm:&mut Farm,itemid:u64,userid:u64,payment:&mut Coi
 
 
 //return rented farm item
-public entry fun return_rented_item(farm:&mut Farm,userid:u64,itemid:u64,buyersaddress:address){
+public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,buyersaddress:address){
     //verify that items is rented
 
     let mut index:u64=0;
