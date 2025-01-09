@@ -1,4 +1,5 @@
 module dacade_deepbook::farm {
+// use sui::object::{Self, UID, ID};
 use std::string::{String};
 use sui::coin::{Coin,split, put,take};
 use sui::balance::{Balance,zero};
@@ -306,34 +307,6 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 }
 
 
-// get farm details
-public fun view_farm_details(farm: &Farm) : 
- (  
-    &UID, 
-    String, 
-    ID, 
-    &Balance<SUI>, 
-    &vector<ItemForRent>,
-    &vector<Renteditem>,
-    &vector<RefundRequest>,
-    &vector<User>,
-    &vector<BoughtItems>,  
-
- ) {
-    (
-        &farm.id, 
-        farm.name,
-        farm.farmid,
-        &farm.balance, 
-        &farm.items, 
-        &farm.rented,
-        &farm.refunds, 
-        &farm.registeredusers,
-        &farm.boughtitems, 
-    )
-}
-
-
  // get farm items details using the item id
 public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, String, u64, bool, bool) {
     let item = &farm.items[itemid];
@@ -352,6 +325,7 @@ public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, S
 public fun get_farm_balance(farm: &Farm): u64 {
         farm.balance.value()  
     }
+
 
 //owner witdraw amounts
  public entry fun withdraw_funds(
