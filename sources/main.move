@@ -307,6 +307,35 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 }
 
 
+// get farm details
+public fun view_farm_details(farm: &Farm) : 
+ (  
+    &UID, 
+    String, 
+    ID, 
+    &Balance<SUI>, 
+    &vector<ItemForRent>,
+    &vector<Renteditem>,
+    &vector<RefundRequest>,
+    &vector<User>,
+    &vector<BoughtItems>,  
+
+ ) {
+    (
+        &farm.id, 
+        farm.name,
+        farm.farmid,
+        &farm.balance, 
+        &farm.items, 
+        &farm.rented,
+        &farm.refunds, 
+        &farm.registeredusers,
+        &farm.boughtitems, 
+    )
+}
+
+
+
  // get farm items details using the item id
 public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, String, u64, bool, bool) {
     let item = &farm.items[itemid];
@@ -321,10 +350,31 @@ public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, S
     )
 }
 
+
+// getter function that gets users by id
+public fun get_user_details(farm: &Farm, userid: u64) : (u64, String) {
+    let user = &farm.registeredusers[userid];
+    (
+        user.id,
+        user.nameofuser,
+
+    )
+}
+
 // Get the balance of a farm
 public fun get_farm_balance(farm: &Farm): u64 {
         farm.balance.value()  
     }
+
+// getter for the rented book details with the rented book id
+public fun get_rented_item_details(rented: &Renteditem) : (u64, u64, u64, bool) {
+    (
+        rented.id,
+        rented.itemid,
+        rented.userid,
+        rented.refunded
+    )
+}
 
 
 //owner witdraw amounts
