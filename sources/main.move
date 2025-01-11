@@ -1,8 +1,9 @@
 module dacade_deepbook::farm {
 // use sui::object::{Self, UID, ID};
-use std::string::{Self,String};
+use std::string::{String};
 use sui::coin::{Coin,split, put,take};
 use sui::balance::{Balance,zero};
+use std::option::{none,some};
 use sui::sui::SUI;
 use sui::event;
 
@@ -20,6 +21,7 @@ public struct Farm has store,key{
     name:String,
     farmid:ID,
     balance:Balance<SUI>,
+    rating: Option<u64>,
     items:vector<ItemForRent>,
     rented:vector<Renteditem>,
     refunds:vector<RefundRequest>,
@@ -59,15 +61,6 @@ public struct ItemForRent has store,drop{
     sold:bool,
     rented:bool,
 }
-
-public struct ItemUpdated has copy, drop {
-        nameofitem: String,
-        description: String,
-        image:String,
-        price:u64,
-        sold: bool,
-        rented: bool,
-    }
 
 public struct User has store{
     id:u64,
@@ -121,6 +114,7 @@ public entry fun create_farm( name: String, ctx: &mut TxContext ) {
         name,
         farmid:farmid,
         balance:zero<SUI>(),
+        rating: none(),
         items:vector::empty(),
         rented:vector::empty(),
         refunds:vector::empty(),
@@ -317,36 +311,14 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 }
 
 
-// get farm details
-// public fun view_farm_details(farm: &Farm) : 
-//  (  
-//     &UID, 
-//     String, 
-//     ID, 
-//     &Balance<SUI>, 
-//     &vector<ItemForRent>,
-//     &vector<Renteditem>,
-//     &vector<RefundRequest>,
-//     &vector<User>,
-//     &vector<BoughtItems>,  
-
-//  ) {
-//     (
-//         &farm.id, 
-//         farm.name,
-//         farm.farmid,
-//         &farm.balance, 
-//         &farm.items, 
-//         &farm.rented,
-//         &farm.refunds, 
-//         &farm.registeredusers,
-//         &farm.boughtitems, 
-//     )
-// }
+  // Rate the Farm
+public entry fun rate_farm(farm: &mut Farm, rating: u64,owner:&AdminCap) {
+    // assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+    farm.rating = some(rating);
+}
 
 
-
- // get farm items details using the item id
+// get farm items details using the item id
 public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, String, u64, bool, bool) {
     let item = &farm.items[itemid];
      (
@@ -360,14 +332,12 @@ public fun view_item_details(farm: &Farm, itemid: u64) : (u64, String, String, S
     )
 }
 
-
 // getter function that gets users by id
 public fun get_user_details(farm: &Farm, userid: u64) : (u64, String) {
     let user = &farm.registeredusers[userid];
     (
         user.id,
         user.nameofuser,
-
     )
 }
 
