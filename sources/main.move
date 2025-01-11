@@ -1,6 +1,6 @@
 module dacade_deepbook::farm {
 // use sui::object::{Self, UID, ID};
-use std::string::{String};
+use std::string::{Self,String};
 use sui::coin::{Coin,split, put,take};
 use sui::balance::{Balance,zero};
 use sui::sui::SUI;
@@ -59,6 +59,15 @@ public struct ItemForRent has store,drop{
     sold:bool,
     rented:bool,
 }
+
+public struct ItemUpdated has copy, drop {
+        nameofitem: String,
+        description: String,
+        image:String,
+        price:u64,
+        sold: bool,
+        rented: bool,
+    }
 
 public struct User has store{
     id:u64,
@@ -155,6 +164,7 @@ public entry fun add_equipment(farm:&mut Farm,nameofitem:String,description:Stri
     });
 
 }
+
 
 // update the price of an item in a farm
 public entry fun update_item_price(farm:&mut Farm,itemid:u64,newprice:u64,owner:&AdminCap){
@@ -308,31 +318,31 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 
 
 // get farm details
-public fun view_farm_details(farm: &Farm) : 
- (  
-    &UID, 
-    String, 
-    ID, 
-    &Balance<SUI>, 
-    &vector<ItemForRent>,
-    &vector<Renteditem>,
-    &vector<RefundRequest>,
-    &vector<User>,
-    &vector<BoughtItems>,  
+// public fun view_farm_details(farm: &Farm) : 
+//  (  
+//     &UID, 
+//     String, 
+//     ID, 
+//     &Balance<SUI>, 
+//     &vector<ItemForRent>,
+//     &vector<Renteditem>,
+//     &vector<RefundRequest>,
+//     &vector<User>,
+//     &vector<BoughtItems>,  
 
- ) {
-    (
-        &farm.id, 
-        farm.name,
-        farm.farmid,
-        &farm.balance, 
-        &farm.items, 
-        &farm.rented,
-        &farm.refunds, 
-        &farm.registeredusers,
-        &farm.boughtitems, 
-    )
-}
+//  ) {
+//     (
+//         &farm.id, 
+//         farm.name,
+//         farm.farmid,
+//         &farm.balance, 
+//         &farm.items, 
+//         &farm.rented,
+//         &farm.refunds, 
+//         &farm.registeredusers,
+//         &farm.boughtitems, 
+//     )
+// }
 
 
 
@@ -365,16 +375,6 @@ public fun get_user_details(farm: &Farm, userid: u64) : (u64, String) {
 public fun get_farm_balance(farm: &Farm): u64 {
         farm.balance.value()  
     }
-
-// getter for the rented book details with the rented book id
-public fun get_rented_item_details(rented: &Renteditem) : (u64, u64, u64, bool) {
-    (
-        rented.id,
-        rented.itemid,
-        rented.userid,
-        rented.refunded
-    )
-}
 
 
 //owner witdraw amounts
