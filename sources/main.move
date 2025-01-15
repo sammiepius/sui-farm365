@@ -1,4 +1,4 @@
-module dacade_deepbook::farm {
+module farm::farm {
 // use sui::object::{Self, UID, ID};
 use std::string::{String};
 use sui::coin::{Coin,split, put,take};
@@ -84,6 +84,11 @@ public struct ItemAdded has copy,drop{
 public struct PriceUpdated has copy,drop{
     name:String,
     newprice:u64
+}
+// struct for Description update 
+public struct DescriptionUpdated has copy,drop{
+    name:String,
+    newdescription:String
 }
 
 // struct for users registration
@@ -175,6 +180,24 @@ public entry fun update_item_price(farm:&mut Farm,itemid:u64,newprice:u64,owner:
      event::emit(PriceUpdated{
         name:farm.items[itemid].nameofitem,
         newprice
+    });
+}
+
+// update the description of an equipment in a farm
+public entry fun update_item_Description(farm:&mut Farm,itemid:u64,newdescription:String,owner:&AdminCap){
+
+    //check that its the owner performing the action
+     assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+
+     //check that item exists
+     assert!(itemid<=farm.items.length(),ITEMEDOESNOTEXISTS);
+
+     farm.items[itemid].description=newdescription;
+
+
+     event::emit(DescriptionUpdated{
+        name:farm.items[itemid].nameofitem,
+        newdescription
     });
 }
 
@@ -313,7 +336,7 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 
   // Rate the Farm
 public entry fun rate_farm(farm: &mut Farm, rating: u64,owner:&AdminCap) {
-    // assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+    assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
     farm.rating = some(rating);
 }
 
