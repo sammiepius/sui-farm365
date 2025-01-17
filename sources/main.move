@@ -1,5 +1,5 @@
 module farm::farm {
-// use sui::object::{Self, UID, ID};
+
 use std::string::{String};
 use sui::coin::{Coin,split, put,take};
 use sui::balance::{Balance,zero};
@@ -357,7 +357,7 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 
   // Rate the Farm
 public entry fun rate_farm(farm: &mut Farm, rating: u64) {
-    // assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+
     assert!(rating >0 && rating < 10,INVALIDRATING);
     farm.rating = some(rating);
 }
