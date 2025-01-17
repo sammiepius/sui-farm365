@@ -14,6 +14,9 @@ const MUSTBEREGISTERED:u64=2;
 const INSUFFICIENTBALANCE:u64=3;
 const ITEMALREADYSOLD:u64=4;
 const ITEMALREADYRENTED:u64=5;
+const ALREADYREFUNDED:u64=6;
+const INVALIDRATING:u64=7;
+
 //define user data types
 
 public struct Farm has store,key{
@@ -26,7 +29,8 @@ public struct Farm has store,key{
     rented:vector<Renteditem>,
     refunds:vector<RefundRequest>,
     registeredusers:vector<User>,
-    boughtitems:vector<BoughtItems>
+    boughtitems:vector<BoughtItems>,
+   
 }
 
 public struct Renteditem has store{
@@ -108,6 +112,7 @@ public struct RentedItem has copy,drop{
     by:u64
 }
 
+
 // create farm
 public entry fun create_farm( name: String, ctx: &mut TxContext ) {
     let id=object::new(ctx);
@@ -122,9 +127,9 @@ public entry fun create_farm( name: String, ctx: &mut TxContext ) {
         rating: none(),
         items:vector::empty(),
         rented:vector::empty(),
-        refunds:vector::empty(),
+        refunds:vector::empty(),    
         registeredusers:vector::empty(),
-        boughtitems:vector::empty()
+        boughtitems:vector::empty()        
         };
 
   // Create the AdminCap associated with the farm
@@ -305,6 +310,22 @@ public entry fun rent_equipment(farm:&mut Farm,itemid:u64,userid:u64,payment:&mu
     });
 }
 
+//admin approves refund request of the deposit
+public entry fun deposit_refund(farm:&mut Farm,refundid:u64,amount:u64,owner:&AdminCap,ctx:&mut TxContext){
+
+    //verify ist the admin performing the action
+    assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+    //verify that the refund is not resolved
+    assert!(farm.refunds[refundid].resolved==false,ALREADYREFUNDED);
+    //verify the store has sufficient balance to perform the refund
+    // let _itemid=&farm.refunds[refundid].itemid;
+
+     let refundamount = take(&mut farm.balance, amount, ctx);
+     transfer::public_transfer(refundamount, farm.refunds[refundid].buyersaddress);  
+       
+
+    farm.refunds[refundid].resolved=true;
+}
 
 //return rented farm item
 public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,buyersaddress:address){
@@ -337,6 +358,7 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
   // Rate the Farm
 public entry fun rate_farm(farm: &mut Farm, rating: u64) {
     // assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+    assert!(rating >0 && rating < 10,INVALIDRATING);
     farm.rating = some(rating);
 }
 
