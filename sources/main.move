@@ -335,8 +335,8 @@ public entry fun return_rented_equipment(farm:&mut Farm,userid:u64,itemid:u64,bu
 
 
   // Rate the Farm
-public entry fun rate_farm(farm: &mut Farm, rating: u64,owner:&AdminCap) {
-    assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
+public entry fun rate_farm(farm: &mut Farm, rating: u64) {
+    // assert!(&owner.farmid == object::uid_as_inner(&farm.id),ONLYOWNER);
     farm.rating = some(rating);
 }
 
